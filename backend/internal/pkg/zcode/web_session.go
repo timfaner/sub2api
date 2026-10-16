@@ -57,7 +57,7 @@ func (c *Client) webSessionBusiness(ctx context.Context, current Session, token 
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return fail("IDENTITY_REJECTED")
+		return nil, &APIError{Stage: "web_session", Status: resp.StatusCode, Code: "IDENTITY_REJECTED"}
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, responseLimit+1))
 	var identity struct {

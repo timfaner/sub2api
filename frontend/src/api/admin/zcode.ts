@@ -17,3 +17,6 @@ export async function pollZCodeLogin(id: number, flow: string): Promise<ZCodeLog
 export async function cancelZCodeLogin(id: number, flow: string): Promise<void> {
   await apiClient.delete(`${path(id)}/${encodeURIComponent(flow)}`)
 }
+export async function bindZCodeWebSession(id: number, token: string): Promise<void> {
+  await apiClient.post(`/admin/accounts/${id}/zcode/web-session`, { token, consent: true }, { timeout: 50_000 })
+}

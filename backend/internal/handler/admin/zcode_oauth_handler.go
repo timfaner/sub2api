@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"net/http"
 	"strconv"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -10,6 +11,27 @@ import (
 )
 
 type ZCodeOAuthHandler struct{ login *service.ZCodeLoginService }
+
+func (h *ZCodeOAuthHandler) BindWebSession(c *gin.Context) {
+	owner, id, ok := zcodeLoginScope(c)
+	if !ok {
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 40*1024)
+	var input struct {
+		Token   string `json:"token"`
+		Consent bool   `json:"consent"`
+	}
+	if c.ShouldBindJSON(&input) != nil || input.Token == "" {
+		response.Error(c, http.StatusBadRequest, "valid web session authorization is required")
+		return
+	}
+	if err := h.login.BindWebSession(c.Request.Context(), owner, id, input.Token, input.Consent); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"status": "bound"})
+}
 
 func NewZCodeOAuthHandler(login *service.ZCodeLoginService) *ZCodeOAuthHandler {
 	return &ZCodeOAuthHandler{login: login}

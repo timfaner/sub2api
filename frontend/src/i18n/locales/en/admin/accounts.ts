@@ -1,7 +1,17 @@
 export default {
     accounts: {
       zcode: {
-        saved: "Authorization is saved. The server maintains credentials automatically.",
+        webTitle: "Optional: bind Z.ai web session (experimental)",
+        webBound: "Web session bound. Revocation or expiry still requires manual rebinding.",
+        webScope: "The ordinary OAuth authorization expires and cannot renew itself in live testing. A web session can exchange business credentials, but long-term validity is still being verified; permanent unattended access is not guaranteed.",
+        webInstructions: "Sign in to your own Z.ai account, then open the session page. Confirm role is user and paste only the token field below, not the entire JSON. Do not share that page. The server verifies the original account and project.",
+        webOpen: "Open your Z.ai session page",
+        webToken: "Web session token",
+        webConsent: "I authorize this deployment to maintain authorization using this web session. It may grant broader account access than OAuth and will be encrypted on this server.",
+        webBind: "Verify and bind web session",
+        webError: "Binding failed; new credentials were not saved. Check the account, session and network, then paste again.",
+
+        saved: "Authorization is saved. The server maintains derived credentials; root authorization expiry may require signing in again.",
         reauthorize: "Authorize again",
         rootRejected: "The upstream rejected the root authorization. Automatic retries continue; persistent rejection requires reauthorization.",
         retrying: "Credential renewal temporarily failed. The server will retry automatically.",

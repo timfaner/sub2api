@@ -43,7 +43,8 @@ func (c *ZCodeSessionCodec) Credentials(accountID int64, session zcode.Session) 
 	return map[string]any{
 		"auth_method": "zcode", "account_mode": AccountModeCoding, "api_protocol": APIProtocolAnthropic,
 		"zcode_plan_type": "personal", "zcode_site": "zai", zcodeSessionCredential: sealed,
-		"expires_at": session.PATExpiresAt.UTC().Format(time.RFC3339),
+		"expires_at":              session.PATExpiresAt.UTC().Format(time.RFC3339),
+		"zcode_web_session_bound": session.WebSessionToken != "",
 	}, nil
 }
 

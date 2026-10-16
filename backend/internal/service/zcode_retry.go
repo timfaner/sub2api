@@ -42,7 +42,8 @@ func (p *ZCodeTokenProvider) recordRenewalFailure(ctx context.Context, a *Accoun
 		delay = 15 * time.Minute
 	}
 	reason := "upstream_temporarily_unavailable"
-	if api.Stage == "business" && (api.Status == 401 || api.Status == 403) {
+	if api.Stage == "business" && (api.Status == 401 || api.Status == 403 || api.Code == "BUSINESS_REJECTED") ||
+		api.Stage == "web_session" && (api.Status == 401 || api.Status == 403 || api.Code == "IDENTITY_MISMATCH" || api.Code == "PROJECT_MISMATCH") {
 		reason = "root_authorization_rejected"
 	}
 	next := shallowCopyMap(a.Credentials)

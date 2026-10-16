@@ -40,12 +40,17 @@ with automatic renewal succeeded; Chat Completions tool calls and Responses also
 completed. The project token was still valid and retained its original expiry, so
 this does not yet prove renewal beyond its natural expiration. No declared web
 session expiry is not a lifetime guarantee. This experimental credential has not
-been deployed to production and is not exposed as a supported login option.
+been deployed to production. The account editor offers an explicitly consented,
+experimental web-session binding option after official OAuth login.
 The protocol layer now provides explicit `BindWebSession`: it retains the original
 OAuth separately, rejects guest or mismatched identities, verifies the original
 personal project, and repeats those checks when exchanging business credentials.
 Binding errors preserve existing state. A rejected web session does not silently
-fall back to OAuth. An administrator-facing binding flow is still pending.
+fall back to OAuth. Binding updates only credentials through a compare-and-swap;
+it never enables scheduling. The request body is omitted from audit logs, the
+input clears after submission, and the server exposes only a bound/unbound flag.
+Complete or cancel any pending OAuth login before binding. Reauthorizing through
+the official OAuth flow replaces the optional web session as well.
 
 ## Release channel
 

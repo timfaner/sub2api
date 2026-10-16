@@ -62,13 +62,13 @@ jobs:
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile
-          pnpm exec vitest run src/components/account/__tests__/ZCodeLoginPanel.spec.ts src/components/account/__tests__/CreateAccountModal.spec.ts src/components/common/__tests__/VersionBadge.spec.ts
+          pnpm exec vitest run src/components/account/__tests__/ZCodeWebSessionPanel.spec.ts src/components/account/__tests__/ZCodeLoginPanel.spec.ts src/components/account/__tests__/CreateAccountModal.spec.ts src/components/common/__tests__/VersionBadge.spec.ts
           pnpm run build
       - name: Backend verification
         working-directory: backend
         run: |
           go test -race ./internal/pkg/zcode
-          go test -tags=unit ./internal/service ./internal/repository ./internal/handler -run 'TestZCode|TestUpdateService|TestGatewayZhipu' -count=1
+          go test -tags=unit ./internal/service ./internal/repository ./internal/handler ./internal/handler/admin ./internal/server/middleware -run 'TestZCode|TestUpdateService|TestGatewayZhipu' -count=1
       - name: Persistent web upgrade verification
         run: python3 deploy/tests/zcode-web-update-test.py
       - name: Build compatible archives

@@ -25,6 +25,7 @@
         </button>
       </div>
     </template>
+    <ZCodeWebSessionPanel v-if="hasAuthorization && !flow && !busy" :account-id="accountId" :bound="credentials?.zcode_web_session_bound === true" @bound="emit('ready')" />
   </section>
 </template>
 
@@ -32,6 +33,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { startZCodeLogin, pollZCodeLogin, cancelZCodeLogin } from '@/api/admin/zcode'
+import ZCodeWebSessionPanel from './ZCodeWebSessionPanel.vue'
 const props = defineProps<{ accountId: number; credentials?: Record<string, unknown> }>()
 const emit = defineEmits<{ ready: [] }>()
 const { t } = useI18n()

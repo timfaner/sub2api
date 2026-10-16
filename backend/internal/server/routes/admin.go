@@ -62,6 +62,7 @@ func RegisterAdminRoutes(
 		registerGrokOAuthRoutes(admin, h)
 		if h.Admin.ZCodeOAuth != nil {
 			admin.POST("/accounts/:id/zcode/login", h.Admin.ZCodeOAuth.Start)
+			admin.POST("/accounts/:id/zcode/web-session", h.Admin.ZCodeOAuth.BindWebSession)
 			admin.POST("/accounts/:id/zcode/login/:flow/poll", h.Admin.ZCodeOAuth.Poll)
 			admin.DELETE("/accounts/:id/zcode/login/:flow", h.Admin.ZCodeOAuth.Cancel)
 		}
