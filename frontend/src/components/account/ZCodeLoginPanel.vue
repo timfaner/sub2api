@@ -82,6 +82,7 @@ async function poll() {
     if (disposed) return
     if (result.status === 'ready') {
       ready.value = true
+      flow.value = ''
       authorizeURL.value = ''
       emit('ready')
     } else {

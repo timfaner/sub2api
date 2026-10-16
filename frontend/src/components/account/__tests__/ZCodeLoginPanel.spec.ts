@@ -20,6 +20,8 @@ describe('ZCodeLoginPanel', () => {
     await flushPromises()
     expect(pollZCodeLogin).toHaveBeenCalledWith(42, 'flow')
     expect(w.emitted('ready')).toHaveLength(1)
+    await w.setProps({ credentials: { expires_at: '2026-10-17T03:31:36Z' } })
+    expect(w.text()).toContain('admin.accounts.zcode.webTitle')
     await vi.advanceTimersByTimeAsync(30000)
     expect(pollZCodeLogin).toHaveBeenCalledTimes(1)
     w.unmount()

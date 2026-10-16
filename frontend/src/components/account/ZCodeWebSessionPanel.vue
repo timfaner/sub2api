@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { bindZCodeWebSession } from '@/api/admin/zcode'
 const props = defineProps<{ accountId: number; bound: boolean }>()
@@ -30,14 +30,16 @@ const consent = ref(false)
 const busy = ref(false)
 const failed = ref(false)
 let disposed = false
+watch(() => props.accountId, () => { token.value = ''; consent.value = false; failed.value = false })
 async function bind() {
   if (busy.value || !consent.value || !token.value.trim() || disposed) return
   busy.value = true
   failed.value = false
+  const accountId = props.accountId
   try {
-    await bindZCodeWebSession(props.accountId, token.value.trim())
-    if (!disposed) emit('bound')
-  } catch { if (!disposed) failed.value = true }
+    await bindZCodeWebSession(accountId, token.value.trim())
+    if (!disposed && props.accountId === accountId) emit('bound')
+  } catch { if (!disposed && props.accountId === accountId) failed.value = true }
   finally { token.value = ''; consent.value = false; busy.value = false }
 }
 onBeforeUnmount(() => { disposed = true; token.value = ''; consent.value = false })

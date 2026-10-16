@@ -34,3 +34,19 @@ describe('web session binding', () => {
     w.unmount()
   })
 })
+
+it('clears the draft and ignores late success when the selected account changes', async () => {
+  let finish!: () => void
+  vi.mocked(bindZCodeWebSession).mockImplementation(() => new Promise(resolve => { finish = resolve }))
+  const w = mount(ZCodeWebSessionPanel, { props: { accountId: 7, bound: false } })
+  await w.find('input[type=password]').setValue('private-token')
+  await w.find('input[type=checkbox]').setValue(true)
+  await w.find('button').trigger('click')
+  await w.setProps({ accountId: 8 })
+  expect((w.find('input[type=password]').element as HTMLInputElement).value).toBe('')
+  expect((w.find('input[type=checkbox]').element as HTMLInputElement).checked).toBe(false)
+  finish()
+  await flushPromises()
+  expect(w.emitted('bound')).toBeUndefined()
+  w.unmount()
+})
