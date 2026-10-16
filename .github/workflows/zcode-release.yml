@@ -1,7 +1,10 @@
 name: ZCode compatible release
 
-# Explicit dispatch avoids competing with upstream's v* tag release workflow.
+# ZCode tags are excluded from the ordinary upstream release workflow.
 on:
+  push:
+    tags:
+      - 'v*-zcode.*'
   workflow_dispatch:
     inputs:
       version:
@@ -22,19 +25,25 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/zcode' && github.repository == 'timfaner/sub2api'
+    if: (github.ref == 'refs/heads/zcode' || startsWith(github.ref, 'refs/tags/v')) && github.repository == 'timfaner/sub2api'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
     env:
-      ZCODE_VERSION: ${{ inputs.version }}
+      ZCODE_VERSION: ${{ inputs.version || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Validate version
         shell: bash
-        run: '[[ "$ZCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-zcode\.[1-9][0-9]*$ ]]'
+        run: |
+          ZCODE_VERSION=${ZCODE_VERSION#v}
+          [[ "$ZCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-zcode\.[1-9][0-9]*$ ]]
+          git merge-base --is-ancestor HEAD origin/zcode
+          printf 'ZCODE_VERSION=%s\n' "$ZCODE_VERSION" >> "$GITHUB_ENV"
       - uses: actions/setup-go@v6
         with:
           go-version-file: backend/go.mod
@@ -79,29 +88,29 @@ jobs:
             dist/*.tar.gz
             dist/*.txt
       - uses: docker/setup-qemu-action@v3
-        if: inputs.publish
+        if: inputs.publish || github.event_name == 'push'
       - uses: docker/setup-buildx-action@v3
-        if: inputs.publish
+        if: inputs.publish || github.event_name == 'push'
       - uses: docker/login-action@v3
-        if: inputs.publish
+        if: inputs.publish || github.event_name == 'push'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Build and publish versioned container
-        if: inputs.publish
+        if: inputs.publish || github.event_name == 'push'
         uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/timfaner/sub2api:${{ inputs.version }}
+          tags: ghcr.io/timfaner/sub2api:${{ env.ZCODE_VERSION }}
           build-args: |
-            VERSION=${{ inputs.version }}
+            VERSION=${{ env.ZCODE_VERSION }}
             COMMIT=${{ github.sha }}
             BUILD_TYPE=zcode
       - name: Publish compatible release
-        if: inputs.publish
+        if: inputs.publish || github.event_name == 'push'
         shell: bash
         run: |
           gh release create "v$ZCODE_VERSION" dist/*.tar.gz dist/*.txt \
