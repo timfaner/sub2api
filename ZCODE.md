@@ -26,10 +26,21 @@ from overwriting reauthorization. Transient upstream failures use persisted boun
 backoff. Revoked authorization needs human reauthorization; an expired/rejected
 authorization is never replaced with an unsigned or ordinary API-key request.
 
-The inspected client does not establish a root OAuth refresh endpoint. Derived
-token renewal alone does not prove indefinitely unattended operation. Natural root
-expiry and subsequent exchange must be verified separately before claiming that
-guarantee. The account editor exposes renewal failure and retry state.
+The inspected client does not establish a root OAuth refresh endpoint. In the
+2026-10-17 live test, the original OAuth token expired after approximately one
+hour and could no longer exchange business credentials. Therefore the current
+official OAuth login alone does **not** satisfy long-term unattended operation,
+even while its derived business/project credentials remain valid. The account
+editor exposes renewal failure and retry state.
+
+A separate, explicitly authorized local experiment used the same user's native
+Z.ai web session. Identity and personal project were checked before binding. Two
+business exchanges, encrypted persistence/reload, and actual application restart
+with automatic renewal succeeded; Chat Completions tool calls and Responses also
+completed. The project token was still valid and retained its original expiry, so
+this does not yet prove renewal beyond its natural expiration. No declared web
+session expiry is not a lifetime guarantee. This experimental credential has not
+been deployed to production and is not exposed as a supported login option.
 
 ## Release channel
 
@@ -83,5 +94,14 @@ quota evidence, not a precise per-request bill or a promise of future pricing.
 After restart, Chat Completions tool call/result and Responses completed without
 interactive reauthorization. Earlier attempts timed out; no deterministic cause
 was established, so those failures remain an operational caveat. Natural root
-expiry, sustained unattended operation and production deployment are separate
-acceptance checks; do not infer them from a successful short request.
+expiry and sustained unattended operation are separate acceptance checks; do not
+infer them from a successful short request.
+
+Release `v0.2.17-zcode.4` passed full CI and was installed on the existing
+mac-server deployment through the web updater API. Its web restart action loaded
+version `0.2.17-zcode.4`, and recreating only the application container retained
+that version with healthy status. The update check then reported this fork release
+as current with no warning. Both standard and Codex model catalogs returned the
+same eleven upstream GLM models. No production account status, routing or group
+membership was changed. This deployment still uses its original OAuth credential;
+the experimental native web session remains local only.
