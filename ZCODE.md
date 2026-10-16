@@ -7,7 +7,10 @@ their existing behavior.
 
 The gateway uses the international Anthropic endpoint with ZCode request signing.
 Messages, Chat Completions and Responses share this path. Quota uses the CN-provider
-quota endpoint. Generic Claude usage and unverified model discovery are not used.
+quota endpoint. Generic Claude usage is not used. Zhipu group model lists are
+read from the group's schedulable upstream accounts, including ZCode's verified
+PAT-authenticated model endpoint. Account mappings and group allowlists apply;
+empty catalogs stay empty and failures never fall back to Claude defaults.
 
 ## Credential lifetime
 
@@ -58,9 +61,16 @@ ZCode tags are excluded from the ordinary release workflow.
    Preserve data volumes and environment. Check health, login, quota and a controlled
    inference request. Keep the previous image and backup for rollback.
 
-The built-in updater can replace a running binary, but a later Docker recreation
-restores the image's binary. Use a versioned compatible **container image** for
-durable Docker upgrades. Never use `weishaw/sub2api:latest` for this deployment.
+ZCode images set `SUB2API_UPDATE_CHANNEL=zcode`. The entrypoint seeds the tested
+image binary into `/app/data/zcode-bin/sub2api` on first start and runs it there.
+The existing web updater then replaces this persistent executable. Web updates
+survive both restart and container recreation as long as `/app/data` is retained.
+The web update source is this fork's compatible GitHub releases. Restart using
+the existing web restart action after an update. The persisted binary takes
+precedence over the image; changing the image alone does not downgrade it. To
+reset deliberately, stop the service and move aside `data/zcode-bin`, then start
+a compatible image. Preserve that directory in backups. Never use
+`weishaw/sub2api:latest` for this deployment.
 
 ## Verification scope
 

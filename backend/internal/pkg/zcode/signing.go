@@ -82,7 +82,7 @@ func HandshakeProof(c Credential, ts, nonce string) string {
 	key := derive(c.Secret, "getSignKey_hmac")
 	defer clear(key)
 	h := hmac.New(sha256.New, key)
-	h.Write([]byte("get_sign_key\n" + c.ID + "\n" + ts + "\n" + nonce))
+	_, _ = h.Write([]byte("get_sign_key\n" + c.ID + "\n" + ts + "\n" + nonce))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 

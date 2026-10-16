@@ -68,7 +68,9 @@ jobs:
         working-directory: backend
         run: |
           go test -race ./internal/pkg/zcode
-          go test -tags=unit ./internal/service ./internal/repository -run 'TestZCode|TestUpdateService' -count=1
+          go test -tags=unit ./internal/service ./internal/repository ./internal/handler -run 'TestZCode|TestUpdateService|TestGatewayZhipu' -count=1
+      - name: Persistent web upgrade verification
+        run: python3 deploy/tests/zcode-web-update-test.py
       - name: Build compatible archives
         shell: bash
         run: |
@@ -81,6 +83,10 @@ jobs:
               -o "../dist/linux_$arch/sub2api" ./cmd/server)
             tar -czf "dist/sub2api_linux_$arch.tar.gz" -C "dist/linux_$arch" sub2api
           done
+          # Check the actual native binary before declaring compatibility.
+          dist/linux_amd64/sub2api -version 2>&1 | tee dist/version-check.log
+          grep -F 'build_type: zcode' dist/version-check.log
+          grep -F "Sub2API $ZCODE_VERSION " dist/version-check.log
           printf 'schema=1\nversion=%s\ncommit=%s\nbuild_type=zcode\n' "$ZCODE_VERSION" "$GITHUB_SHA" > dist/zcode-compatible-v1.txt
           (cd dist && sha256sum *.tar.gz zcode-compatible-v1.txt > checksums.txt)
       - uses: actions/upload-artifact@v7

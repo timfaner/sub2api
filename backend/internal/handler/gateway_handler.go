@@ -1166,6 +1166,10 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		h.pinnedOpenAIModels(c, apiKey.Group)
 		return
 	}
+	if platform == service.PlatformZhipu && apiKey != nil && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformZhipu {
+		h.zhipuModels(c, apiKey.Group)
+		return
+	}
 
 	if platform == service.PlatformComposite {
 		availableModels := h.compositeAvailableModels(c.Request.Context(), groupID, "", true)
@@ -1234,7 +1238,28 @@ func (h *GatewayHandler) CodexModels(c *gin.Context) {
 	if value, exists := middleware2.GetForcePlatformFromContext(c); exists {
 		forcedPlatform = strings.TrimSpace(value)
 	}
-	modelIDs := h.codexModelIDsForGroup(c.Request.Context(), apiKey.Group, forcedPlatform)
+	var modelIDs []string
+	if apiKey.Group.Platform == service.PlatformZhipu && (forcedPlatform == "" || forcedPlatform == service.PlatformZhipu) {
+		response, ok := h.fetchZhipuModels(c, apiKey.Group, "")
+		if !ok {
+			return
+		}
+		var catalog struct {
+			Data []struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(response.Body, &catalog); err != nil {
+			h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Invalid Zhipu model catalogue")
+			return
+		}
+		modelIDs = make([]string, 0, len(catalog.Data))
+		for _, model := range catalog.Data {
+			modelIDs = append(modelIDs, model.ID)
+		}
+	} else {
+		modelIDs = h.codexModelIDsForGroup(c.Request.Context(), apiKey.Group, forcedPlatform)
+	}
 	modelIDs = service.FilterCodexModelIDsForGroup(modelIDs, apiKey.Group)
 	body, err := h.gatewayService.BuildCodexModelsManifestForGroup(
 		c.Request.Context(),

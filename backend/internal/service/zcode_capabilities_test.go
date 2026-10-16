@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -49,11 +48,10 @@ func TestZCodeTokenCountingDoesNotSendCredentialsUpstream(t *testing.T) {
 	}
 }
 
-func TestZCodeModelDiscoveryRejectsUnverifiedEndpoint(t *testing.T) {
+func TestZCodeModelDiscoveryRequiresCredentialProvider(t *testing.T) {
 	a := &Account{ID: 1, Platform: PlatformZhipu, Type: AccountTypeOAuth, Credentials: map[string]any{"auth_method": "zcode"}}
 	req, err := (&AccountTestService{}).buildUpstreamModelsRequest(context.Background(), a)
-	var unsupported *UpstreamModelSyncError
-	if req != nil || !errors.As(err, &unsupported) || unsupported.Kind != UpstreamModelSyncErrorUnsupported {
+	if req != nil || err == nil {
 		t.Fatal("model discovery must not fall back to OpenAI")
 	}
 }
