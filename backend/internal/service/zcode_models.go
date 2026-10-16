@@ -37,7 +37,7 @@ func buildZCodeModelsRequest(ctx context.Context, account *Account, provider *ZC
 // Claude defaults or an incomplete successful list.
 func (s *OpenAIGatewayService) FetchZhipuModelsList(ctx context.Context, group *Group, etag string) (*OpenAIModelsResponse, error) {
 	if s == nil || s.accountRepo == nil || group == nil || group.Platform != PlatformZhipu {
-		return nil, errors.New("Zhipu model discovery requires a Zhipu group")
+		return nil, errors.New("model discovery requires a Zhipu group")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

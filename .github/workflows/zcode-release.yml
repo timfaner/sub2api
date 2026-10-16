@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: zcode-release
+  group: zcode-release-${{ github.ref_type == 'tag' && github.ref_name || 'branch' }}
   cancel-in-progress: false
 
 jobs:
