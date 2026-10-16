@@ -728,8 +728,8 @@ const activeManualCommand = computed(() =>
   manualTab.value === 'docker' ? dockerRollbackCommand.value : scriptRollbackCommand.value
 )
 
-// Only show update check for release builds (binary/docker deployment)
-const isReleaseBuild = computed(() => buildType.value === 'release')
+// Both upstream releases and the compatible fork channel support web updates.
+const isReleaseBuild = computed(() => ['release', 'zcode'].includes(buildType.value))
 
 function toggleDropdown() {
   dropdownOpen.value = !dropdownOpen.value

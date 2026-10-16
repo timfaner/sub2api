@@ -62,7 +62,7 @@ jobs:
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile
-          pnpm exec vitest run src/components/account/__tests__/ZCodeLoginPanel.spec.ts src/components/account/__tests__/CreateAccountModal.spec.ts
+          pnpm exec vitest run src/components/account/__tests__/ZCodeLoginPanel.spec.ts src/components/account/__tests__/CreateAccountModal.spec.ts src/components/common/__tests__/VersionBadge.spec.ts
           pnpm run build
       - name: Backend verification
         working-directory: backend
