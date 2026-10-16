@@ -113,6 +113,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ghcr.io/timfaner/sub2api:${{ env.ZCODE_VERSION }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/timfaner/sub2api
           build-args: |
             VERSION=${{ env.ZCODE_VERSION }}
             COMMIT=${{ github.sha }}
