@@ -461,6 +461,7 @@ type OpenAIGatewayService struct {
 	deferredService       *DeferredService
 	openAITokenProvider   *OpenAITokenProvider
 	grokTokenProvider     *GrokTokenProvider
+	zcodeTokenProvider    *ZCodeTokenProvider
 	toolCorrector         *CodexToolCorrector
 	openaiWSResolver      OpenAIWSProtocolResolver
 	resolver              *ModelPricingResolver
@@ -1217,6 +1218,13 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 	}
 	switch account.Type {
 	case AccountTypeOAuth:
+		if account.IsZCodeOAuth() {
+			if s.zcodeTokenProvider == nil {
+				return "", "", errors.New("zcode: credential provider is not configured")
+			}
+			token, err := s.zcodeTokenProvider.GetAccessToken(ctx, account)
+			return token, "oauth", err
+		}
 		if account.IsOpenAIAgentIdentity() {
 			return "", OpenAIAuthModeAgentIdentity, nil
 		}

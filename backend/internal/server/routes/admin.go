@@ -60,6 +60,11 @@ func RegisterAdminRoutes(
 
 		// Grok OAuth
 		registerGrokOAuthRoutes(admin, h)
+		if h.Admin.ZCodeOAuth != nil {
+			admin.POST("/accounts/:id/zcode/login", h.Admin.ZCodeOAuth.Start)
+			admin.POST("/accounts/:id/zcode/login/:flow/poll", h.Admin.ZCodeOAuth.Poll)
+			admin.DELETE("/accounts/:id/zcode/login/:flow", h.Admin.ZCodeOAuth.Cancel)
+		}
 
 		// 国产供应商（kimi/zhipu/deepseek）额度与余额
 		registerCNProviderRoutes(admin, h)

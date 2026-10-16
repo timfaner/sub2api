@@ -79,9 +79,9 @@ func (s *OpenAIGatewayService) forwardAnthropicViaNativeAnthropicEndpoint(
 	logger.LegacyPrintf("service.gateway", "[CN Anthropic 直通] account=%d(%s) platform=%s model=%s upstream=%s stream=%v",
 		account.ID, account.Name, account.Platform, originalModel, upstreamModel, clientStream)
 
-	apiKey := strings.TrimSpace(account.GetOpenAIProtocolAPIKey())
-	if apiKey == "" {
-		return nil, fmt.Errorf("account %d missing api_key", account.ID)
+	apiKey, err := s.resolveNativeAnthropicCredential(ctx, account)
+	if err != nil {
+		return nil, err
 	}
 	targetURL, err := s.nativeAnthropicTargetURL(account)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *OpenAIGatewayService) forwardAnthropicViaNativeAnthropicEndpoint(
 		return nil, err
 	}
 
-	resp, err := s.doOpenAIUpstream(upstreamReq, proxyURL, account)
+	resp, err := s.doNativeAnthropicUpstream(upstreamReq, proxyURL, account)
 	if err != nil {
 		return nil, s.handleOpenAIUpstreamTransportError(ctx, c, account, err, true)
 	}
@@ -224,6 +224,11 @@ func (s *OpenAIGatewayService) buildNativeAnthropicUpstreamRequest(
 	payloads := append([][]byte{body}, sessionBodies...)
 	applyOpenCodeSessionHeader(c, account, targetURL, req.Header, payloads...)
 
+	if account.IsZCodeOAuth() {
+		if err := s.signZCodeNativeRequest(ctx, c, account, req, apiKey); err != nil {
+			return nil, nil, err
+		}
+	}
 	return req, body, nil
 }
 

@@ -1,5 +1,26 @@
 export default {
     accounts: {
+      zcode: {
+        saved: "授权已保存，服务端会自动维护凭据。",
+        reauthorize: "重新授权",
+        rootRejected: "上游拒绝了根授权，系统仍会定期重试。若持续出现，需要重新授权。",
+        retrying: "凭据续期暂时失败，系统会自动重试。",
+        retryAt: "下次允许重试时间：{time}",
+
+        method: "登录方式",
+        title: "Z.ai / ZCode 登录",
+        scope: "个人 Z.ai Coding Plan；通过 ZCode 请求链路调用。首次授权后自动维护凭据。",
+        start: "开始授权",
+        open: "打开 Z.ai 授权页面",
+        waiting: "等待授权完成…",
+        error: "授权暂未完成，请重试。",
+        resume: "继续检查授权",
+        cancel: "取消本次授权",
+        ready: "授权完成",
+        pending: "新账号在授权完成前不会接收请求；关闭后可在编辑账号中继续授权。",
+        reloadError: "授权已完成，但账号信息刷新失败，请重新打开账号。",
+      },
+
       title: '账号管理',
       description: '管理 AI 平台账号和 Cookie',
       createAccount: '添加账号',

@@ -437,6 +437,16 @@ func buildAccountForCreate(input *CreateAccountInput, accountExtra map[string]an
 		Status:      StatusActive,
 		Schedulable: true,
 	}
+	if account.IsZCodeOAuth() {
+		// An encrypted session is bound to the server-issued account ID; it
+		// cannot be imported through a generic account creation request.
+		account.Credentials = shallowCopyMap(account.Credentials)
+		delete(account.Credentials, zcodeSessionCredential)
+		delete(account.Credentials, "zcode_login_id")
+		delete(account.Credentials, "zcode_login_completed")
+		account.Credentials["zcode_pending"] = true
+		account.Schedulable = false
+	}
 	if input.ProbeEnabled != nil && *input.ProbeEnabled {
 		if !isUpstreamBillingProbeAccount(account) {
 			return nil, ErrUpstreamBillingProbeAccountInvalid

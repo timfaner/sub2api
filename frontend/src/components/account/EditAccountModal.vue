@@ -26,6 +26,10 @@
         <p class="input-hint">{{ t('admin.accounts.notesHint') }}</p>
       </div>
 
+      <ZCodeLoginPanel
+        v-if="show && account.platform === 'zhipu' && account.type === 'oauth' && account.credentials?.auth_method === 'zcode'"
+        :key="account.id" :account-id="account.id" :credentials="account.credentials" @ready="handleZCodeReady"
+      />
       <!-- API Key fields (only for apikey type) -->
       <div v-if="account.type === 'apikey'" class="space-y-4">
         <div v-if="!isCNApiKeyAccount || editApiProtocol !== 'adaptive'">
@@ -3232,6 +3236,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 
 import { adminAPI } from '@/api/admin'
+import ZCodeLoginPanel from './ZCodeLoginPanel.vue'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
 import type {
   Account,
@@ -3352,6 +3357,15 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const handleZCodeReady = async () => {
+  if (!props.account) return
+  try {
+    const updated = await adminAPI.accounts.getById(props.account.id)
+    emit('updated', updated)
+    handleClose()
+  } catch { appStore.showError(t('admin.accounts.zcode.reloadError')) }
+}
+
 const browserTimeZone = getBrowserTimeZone()
 
 const selectableGroups = computed(() => {

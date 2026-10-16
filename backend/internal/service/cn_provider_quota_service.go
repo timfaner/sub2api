@@ -70,11 +70,12 @@ type CNProviderQuotaProbeResult struct {
 // CNProviderQuotaService 探测 Kimi / Zhipu / MiniMax Coding Plan、OpenCode Go、
 // Command Code 与 Cline（ClinePass）的滚动窗口用量。
 type CNProviderQuotaService struct {
-	accountRepo  AccountRepository
-	proxyRepo    ProxyRepository
-	httpUpstream HTTPUpstream
-	cfg          *config.Config
-	flight       singleflight.Group
+	zcodeTokenProvider *ZCodeTokenProvider
+	accountRepo        AccountRepository
+	proxyRepo          ProxyRepository
+	httpUpstream       HTTPUpstream
+	cfg                *config.Config
+	flight             singleflight.Group
 }
 
 // NewCNProviderQuotaService 构造 Coding Plan 额度探测服务。
@@ -146,6 +147,16 @@ func (s *CNProviderQuotaService) queryUsageForAccount(ctx context.Context, accou
 	}
 
 	apiKey := strings.TrimSpace(account.GetCNAPIKey())
+	if account.IsZCodeOAuth() {
+		if s.zcodeTokenProvider == nil {
+			return nil, infraerrors.New(http.StatusServiceUnavailable, "ZCODE_NOT_CONFIGURED", "zcode credential provider is unavailable")
+		}
+		var err error
+		apiKey, err = s.zcodeTokenProvider.GetAccessToken(ctx, account)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if apiKey == "" {
 		return nil, infraerrors.New(http.StatusBadRequest, "CN_QUOTA_NO_APIKEY", "account api_key is empty")
 	}
@@ -169,7 +180,9 @@ func (s *CNProviderQuotaService) queryUsageForAccount(ctx context.Context, accou
 		// 团队版 GLM Coding Plan：额度端点需 ?type=2 + 组织/项目请求头，
 		// 否则官方 API 回「当前用户不存在coding plan」。组织 ID 存在即视为
 		// 团队版（个人版凭据不含该字段，走原个人版查询路径）。
-		zhipuOrg = strings.TrimSpace(account.GetCredential("zhipu_organization"))
+		if !account.IsZCodeOAuth() {
+			zhipuOrg = strings.TrimSpace(account.GetCredential("zhipu_organization"))
+		}
 		if zhipuOrg != "" {
 			targetURL += "?type=2"
 		}

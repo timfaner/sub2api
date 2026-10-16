@@ -1,0 +1,110 @@
+name: ZCode compatible release
+
+# Explicit dispatch avoids competing with upstream's v* tag release workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version, for example 0.2.17-zcode.1'
+        required: true
+        type: string
+      publish:
+        description: 'Publish after verification (otherwise retain build artifacts only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zcode-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/zcode' && github.repository == 'timfaner/sub2api'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      ZCODE_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate version
+        shell: bash
+        run: '[[ "$ZCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-zcode\.[1-9][0-9]*$ ]]'
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Frontend verification and build
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec vitest run src/components/account/__tests__/ZCodeLoginPanel.spec.ts src/components/account/__tests__/CreateAccountModal.spec.ts
+          pnpm run build
+      - name: Backend verification
+        working-directory: backend
+        run: |
+          go test -race ./internal/pkg/zcode
+          go test -tags=unit ./internal/service ./internal/repository -run 'TestZCode|TestUpdateService' -count=1
+      - name: Build compatible archives
+        shell: bash
+        run: |
+          mkdir -p dist
+          build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          for arch in amd64 arm64; do
+            mkdir -p "dist/linux_$arch"
+            (cd backend && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -tags=embed \
+              -ldflags="-s -w -X main.Version=$ZCODE_VERSION -X main.Commit=$GITHUB_SHA -X main.Date=$build_date -X main.BuildType=zcode" \
+              -o "../dist/linux_$arch/sub2api" ./cmd/server)
+            tar -czf "dist/sub2api_linux_$arch.tar.gz" -C "dist/linux_$arch" sub2api
+          done
+          printf 'schema=1\nversion=%s\ncommit=%s\nbuild_type=zcode\n' "$ZCODE_VERSION" "$GITHUB_SHA" > dist/zcode-compatible-v1.txt
+          (cd dist && sha256sum *.tar.gz zcode-compatible-v1.txt > checksums.txt)
+      - uses: actions/upload-artifact@v7
+        with:
+          name: zcode-compatible-release
+          path: |
+            dist/*.tar.gz
+            dist/*.txt
+      - uses: docker/setup-qemu-action@v3
+        if: inputs.publish
+      - uses: docker/setup-buildx-action@v3
+        if: inputs.publish
+      - uses: docker/login-action@v3
+        if: inputs.publish
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and publish versioned container
+        if: inputs.publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/timfaner/sub2api:${{ inputs.version }}
+          build-args: |
+            VERSION=${{ inputs.version }}
+            COMMIT=${{ github.sha }}
+            BUILD_TYPE=zcode
+      - name: Publish compatible release
+        if: inputs.publish
+        shell: bash
+        run: |
+          gh release create "v$ZCODE_VERSION" dist/*.tar.gz dist/*.txt \
+            --target "$GITHUB_SHA" --title "Sub2API $ZCODE_VERSION" \
+            --notes "ZCode-compatible build. Source commit: $GITHUB_SHA. Container: ghcr.io/timfaner/sub2api:$ZCODE_VERSION" \
+            --latest --prerelease=false

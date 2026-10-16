@@ -384,6 +384,13 @@ func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int
 		return nil
 	}
 
+	if account.IsZCodeOAuth() {
+		if strings.TrimSpace(modelID) == "" {
+			modelID = account.providerDefaultTestModel()
+		}
+		return s.testCNProviderAnthropicConnection(c, account, modelID)
+	}
+
 	// Route to platform-specific test method
 	// 按入站协议分流的多协议供应商（国产厂商等）：按账号协议选测试路径。
 	if account.RoutesProtocolByInbound() {

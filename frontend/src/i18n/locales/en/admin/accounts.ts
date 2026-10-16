@@ -1,5 +1,26 @@
 export default {
     accounts: {
+      zcode: {
+        saved: "Authorization is saved. The server maintains credentials automatically.",
+        reauthorize: "Authorize again",
+        rootRejected: "The upstream rejected the root authorization. Automatic retries continue; persistent rejection requires reauthorization.",
+        retrying: "Credential renewal temporarily failed. The server will retry automatically.",
+        retryAt: "Next retry allowed: {time}",
+
+        method: "Authentication",
+        title: "Z.ai / ZCode login",
+        scope: "Personal Z.ai Coding Plan via ZCode requests. Credentials are maintained after initial authorization.",
+        start: "Start authorization",
+        open: "Open Z.ai authorization",
+        waiting: "Waiting for authorization…",
+        error: "Authorization could not complete. Please retry.",
+        resume: "Check authorization again",
+        cancel: "Cancel authorization",
+        ready: "Authorization complete",
+        pending: "New accounts receive no requests until authorized. You can authorize later from account settings.",
+        reloadError: "Authorization completed, but account details could not reload. Reopen the account.",
+      },
+
       title: 'Account Management',
       description: 'Manage AI platform accounts and credentials',
       createAccount: 'Create Account',

@@ -236,6 +236,16 @@ func (s *AccountTestService) testCNProviderAnthropicConnection(c *gin.Context, a
 	testModelID = account.GetMappedModel(testModelID)
 
 	authToken := strings.TrimSpace(account.GetOpenAIProtocolAPIKey())
+	if account.IsZCodeOAuth() {
+		if s.openaiGatewayService == nil {
+			return s.sendErrorAndEnd(c, "ZCode credential provider is not configured")
+		}
+		var authErr error
+		authToken, authErr = s.openaiGatewayService.resolveNativeAnthropicCredential(ctx, account)
+		if authErr != nil {
+			return s.sendErrorAndEnd(c, "ZCode credentials are unavailable")
+		}
+	}
 	if authToken == "" {
 		return s.sendErrorAndEnd(c, "No API key available")
 	}
@@ -280,12 +290,27 @@ func (s *AccountTestService) testCNProviderAnthropicConnection(c *gin.Context, a
 	account.ApplyHeaderOverrides(req.Header)
 	applyOpenCodeSessionHeader(c, account, apiURL, req.Header, payloadBytes)
 
-	resp, err := s.doCNProviderAdaptiveRequest(req, account)
+	var resp *http.Response
+	if account.IsZCodeOAuth() {
+		if err := s.openaiGatewayService.signZCodeNativeRequest(ctx, c, account, req, authToken); err != nil {
+			return s.sendErrorAndEnd(c, "ZCode request signing failed")
+		}
+		proxyURL := ""
+		if account.ProxyID != nil && account.Proxy != nil {
+			proxyURL = account.Proxy.URL()
+		}
+		resp, err = s.openaiGatewayService.doNativeAnthropicUpstream(req, proxyURL, account)
+	} else {
+		resp, err = s.doCNProviderAdaptiveRequest(req, account)
+	}
 	if err != nil {
 		return s.sendErrorAndEnd(c, fmt.Sprintf("Anthropic endpoint request failed: %s", err.Error()))
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
+		if account.IsZCodeOAuth() {
+			return s.sendErrorAndEnd(c, fmt.Sprintf("ZCode endpoint returned %d", resp.StatusCode))
+		}
 		body, _ := io.ReadAll(resp.Body)
 		errMsg := fmt.Sprintf("Anthropic endpoint returned %d: %s", resp.StatusCode, string(body))
 		if (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) && s.accountRepo != nil {

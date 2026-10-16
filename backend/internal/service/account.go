@@ -357,7 +357,7 @@ func (a *Account) IsGeminiThirdPartyAPIKey() bool {
 }
 
 func (a *Account) CanGetUsage() bool {
-	return a.Type == AccountTypeOAuth
+	return a.Type == AccountTypeOAuth && !a.IsZCodeOAuth()
 }
 
 func (a *Account) GetCredential(key string) string {
@@ -1444,6 +1444,9 @@ func (a *Account) IsOpenAIApiKey() bool {
 // 适用 openai、国产 OpenAI 兼容供应商（kimi/zhipu/deepseek）与 OpenCode Go；
 // grok 走 GetGrokBaseURL，此处对 grok 返回 "" 以保持原有行为。
 func (a *Account) GetOpenAIBaseURL() string {
+	if a.IsZCodeOAuth() {
+		return "https://api.z.ai/api/anthropic"
+	}
 	if !a.IsOpenAI() && !a.IsMultiProtocolAPIKey() {
 		return ""
 	}
@@ -1469,6 +1472,9 @@ func (a *Account) GetOpenAIBaseURL() string {
 // GetAccountMode 返回国产供应商账号的接入模式（payg / coding）；非国产供应商或未设置时
 // 返回空串。存储于 credentials["account_mode"]。
 func (a *Account) GetAccountMode() string {
+	if a.IsZCodeOAuth() {
+		return AccountModeCoding
+	}
 	if a == nil {
 		return ""
 	}
@@ -1489,6 +1495,9 @@ func (a *Account) IsCodingPlan() bool {
 // （与既有行为完全一致）。responses 协议仅 deepseek / kimi / minimax 支持（官方原生
 // Responses 端点，适配 Codex）；zhipu 无此端点。
 func (a *Account) GetAPIProtocol() string {
+	if a.IsZCodeOAuth() {
+		return APIProtocolAnthropic
+	}
 	if a == nil || !a.IsMultiProtocolAPIKey() {
 		return APIProtocolChatCompletions
 	}
@@ -1541,6 +1550,12 @@ func (a *Account) IsAdaptiveAPIProtocol() bool {
 // adaptive 账号优先使用 api_base_urls 中的分协议地址，缺失时按平台和
 // account_mode 使用官方默认端点。base_url 继续作为 Chat Completions 地址兼容旧字段。
 func (a *Account) GetCNProtocolBaseURL(protocol string) string {
+	if a.IsZCodeOAuth() {
+		if protocol == APIProtocolAnthropic {
+			return "https://api.z.ai/api/anthropic"
+		}
+		return ""
+	}
 	if a == nil || !a.IsMultiProtocolAPIKey() {
 		return ""
 	}
@@ -1569,6 +1584,9 @@ func (a *Account) IsAnthropicProtocol() bool {
 // （上游路径为 {base}/v1/messages）。优先取凭证 base_url，缺失时按
 // 供应商 × 接入模式返回默认端点。非 Anthropic 协议账号返回空串。
 func (a *Account) GetAnthropicProtocolBaseURL() string {
+	if a.IsZCodeOAuth() {
+		return "https://api.z.ai/api/anthropic"
+	}
 	if a == nil || (!a.IsAnthropicProtocol() && !a.IsAdaptiveAPIProtocol()) {
 		return ""
 	}
@@ -1589,6 +1607,11 @@ func (a *Account) GetAnthropicProtocolBaseURL() string {
 // 端点，不能拿来拼 OpenAI 路径，此时返回该供应商 × 模式的 Chat Completions
 // 默认 base（模型同步等协议族共用路径仍可用）。
 func (a *Account) GetOpenAIFormatBaseURL() string {
+	// ZCode has no verified OpenAI-format model-discovery endpoint. Never send
+	// its account credentials to the domestic API-key default.
+	if a.IsZCodeOAuth() {
+		return ""
+	}
 	if a == nil || !a.IsAnthropicProtocol() {
 		return a.GetOpenAIBaseURL()
 	}

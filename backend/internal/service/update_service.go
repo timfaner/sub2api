@@ -179,6 +179,9 @@ func (s *UpdateService) PerformUpdate(ctx context.Context) error {
 // verifies its checksum, and atomically swaps the running binary.
 // Shared by PerformUpdate (latest) and RollbackToVersion (specific older version).
 func (s *UpdateService) applyReleaseAssets(ctx context.Context, releaseAssets []Asset) error {
+	if err := s.validateReleaseCompatibility(releaseAssets); err != nil {
+		return err
+	}
 	// Find matching archive and checksum for current platform
 	archiveName := s.getArchiveName()
 	var downloadURL string
@@ -363,7 +366,7 @@ func (s *UpdateService) RollbackToVersion(ctx context.Context, version string) e
 // fetchRollbackCandidates fetches recent releases and keeps the newest
 // maxRollbackVersions entries strictly older than the current version.
 func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubRelease, error) {
-	releases, err := s.githubClient.FetchRecentReleases(ctx, githubRepo, rollbackFetchPageSize)
+	releases, err := s.githubClient.FetchRecentReleases(ctx, s.releaseRepository(), rollbackFetchPageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +374,7 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 	seen := make(map[string]bool, len(releases))
 	candidates := make([]*GitHubRelease, 0, maxRollbackVersions)
 	for _, r := range releases {
-		if r == nil || r.Draft || r.Prerelease {
+		if r == nil || r.Draft || r.Prerelease || !s.releaseCompatible(r) {
 			continue
 		}
 		v := strings.TrimPrefix(r.TagName, "v")
@@ -379,7 +382,7 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 			continue
 		}
 		// Only versions strictly older than current (also excludes current itself)
-		if compareVersions(v, s.currentVersion) >= 0 {
+		if s.compareReleaseVersions(v, s.currentVersion) >= 0 {
 			continue
 		}
 		seen[v] = true
@@ -387,7 +390,7 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 	}
 
 	sort.SliceStable(candidates, func(i, j int) bool {
-		return compareVersions(
+		return s.compareReleaseVersions(
 			strings.TrimPrefix(candidates[i].TagName, "v"),
 			strings.TrimPrefix(candidates[j].TagName, "v"),
 		) > 0
@@ -400,11 +403,14 @@ func (s *UpdateService) fetchRollbackCandidates(ctx context.Context) ([]*GitHubR
 }
 
 func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, error) {
-	release, err := s.githubClient.FetchLatestRelease(ctx, githubRepo)
+	release, err := s.githubClient.FetchLatestRelease(ctx, s.releaseRepository())
 	if err != nil {
 		return nil, err
 	}
 
+	if !s.releaseCompatible(release) {
+		return nil, fmt.Errorf("latest release is missing the required ZCode compatibility marker")
+	}
 	latestVersion := strings.TrimPrefix(release.TagName, "v")
 
 	assets := make([]Asset, len(release.Assets))
@@ -419,7 +425,7 @@ func (s *UpdateService) fetchLatestRelease(ctx context.Context) (*UpdateInfo, er
 	return &UpdateInfo{
 		CurrentVersion: s.currentVersion,
 		LatestVersion:  latestVersion,
-		HasUpdate:      compareVersions(s.currentVersion, latestVersion) < 0,
+		HasUpdate:      s.compareReleaseVersions(s.currentVersion, latestVersion) < 0,
 		ReleaseInfo: &ReleaseInfo{
 			Name:        release.Name,
 			Body:        release.Body,
@@ -608,6 +614,14 @@ func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
 		return nil, err
 	}
 
+	if s.buildType == ZCodeBuildType {
+		if cached.ReleaseInfo == nil {
+			return nil, fmt.Errorf("ZCode release cache lacks compatibility metadata")
+		}
+		if err := s.validateReleaseCompatibility(cached.ReleaseInfo.Assets); err != nil {
+			return nil, err
+		}
+	}
 	if time.Now().Unix()-cached.Timestamp > updateCacheTTL {
 		return nil, fmt.Errorf("cache expired")
 	}
@@ -615,7 +629,7 @@ func (s *UpdateService) getFromCache(ctx context.Context) (*UpdateInfo, error) {
 	return &UpdateInfo{
 		CurrentVersion: s.currentVersion,
 		LatestVersion:  cached.Latest,
-		HasUpdate:      compareVersions(s.currentVersion, cached.Latest) < 0,
+		HasUpdate:      s.compareReleaseVersions(s.currentVersion, cached.Latest) < 0,
 		ReleaseInfo:    cached.ReleaseInfo,
 		Cached:         true,
 		BuildType:      s.buildType,

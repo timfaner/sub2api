@@ -55,6 +55,7 @@ type GrokOAuthRefreshMutationRepository interface {
 // TokenRefreshService OAuth token自动刷新服务
 // 定期检查并刷新即将过期的token
 type TokenRefreshService struct {
+	zcodeProvider    *ZCodeTokenProvider
 	accountRepo      AccountRepository
 	candidatePager   OAuthRefreshCandidatePager
 	registrations    []tokenRefreshRegistration
@@ -205,6 +206,10 @@ func (s *TokenRefreshService) Start() {
 		return
 	}
 
+	if s.zcodeProvider != nil {
+		s.wg.Add(1)
+		go func() { defer s.wg.Done(); s.zcodeProvider.runMaintenance(s.runCtx, s.stopCh) }()
+	}
 	s.wg.Add(1)
 	go s.refreshLoop()
 

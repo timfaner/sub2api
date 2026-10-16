@@ -902,6 +902,9 @@ func listVertexGeminiPublisherModels(location string, fetchPage func(page int, l
 }
 
 func (s *AccountTestService) buildUpstreamModelsRequest(ctx context.Context, account *Account) (*http.Request, error) {
+	if account.IsZCodeOAuth() {
+		return nil, newUpstreamModelSyncUnsupportedError("ZCode model discovery is not configured; use explicitly configured model mappings", nil)
+	}
 	switch {
 	case account.Platform == PlatformAntigravity:
 		return s.buildAntigravityAPIKeyModelsRequest(ctx, account)

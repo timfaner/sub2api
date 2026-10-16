@@ -38,9 +38,10 @@
       </div>
     </div>
 
+    <ZCodeLoginPanel v-if="show && zcodePendingAccountId" :account-id="zcodePendingAccountId" @ready="handleZCodeReady" />
     <!-- Step 1: Basic Info -->
     <form
-      v-if="step === 1"
+      v-if="step === 1 && !zcodePendingAccountId"
       id="create-account-form"
       @submit.prevent="handleSubmit"
       class="space-y-5"
@@ -596,8 +597,16 @@
         </div>
       </div>
 
+      <div v-if="form.platform === 'zhipu'">
+        <label class="input-label">{{ t('admin.accounts.zcode.method') }}</label>
+        <select v-model="zcodeLoginSelected" class="input">
+          <option :value="false">API Key</option>
+          <option :value="true">{{ t('admin.accounts.zcode.title') }}</option>
+        </select>
+        <p v-if="isZCodeLogin" class="input-hint">{{ t('admin.accounts.zcode.scope') }}</p>
+      </div>
       <!-- Account Mode Selection (Kimi / Zhipu / DeepSeek) -->
-      <div v-if="isCNPlatform && !isOpenCodeGoPlatform">
+      <div v-if="isCNPlatform && !isOpenCodeGoPlatform && !isZCodeLogin">
         <label class="input-label">{{ t('admin.accounts.cnProviders.accountMode.title') }}</label>
         <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2" data-tour="account-form-mode">
           <!-- Pay-as-you-go (token balance) -->
@@ -657,7 +666,7 @@
       </div>
 
       <!-- API Protocol Selection (Kimi / Zhipu / DeepSeek / OpenCode) -->
-      <div v-if="isMultiProtocolPlatform" class="mt-4">
+      <div v-if="isMultiProtocolPlatform && !isZCodeLogin" class="mt-4">
         <label class="input-label">{{ t('admin.accounts.cnProviders.apiProtocol.title') }}</label>
         <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
@@ -691,7 +700,7 @@
       </div>
 
       <!-- Zhipu 团队版 Coding Plan：组织/项目 ID（可选，填写后额度探测走团队版端点） -->
-      <div v-if="form.platform === 'zhipu' && accountMode === 'coding'" class="mt-4">
+      <div v-if="form.platform === 'zhipu' && accountMode === 'coding' && !isZCodeLogin" class="mt-4">
         <div class="flex items-center">
           <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.title') }}</label>
           <HelpTooltip trigger="click" width-class="w-80">
@@ -1500,7 +1509,7 @@
       </div>
 
       <!-- API Key input (only for apikey type, excluding Antigravity which has its own fields) -->
-      <div v-if="form.type === 'apikey' && form.platform !== 'antigravity'" class="space-y-4">
+      <div v-if="form.type === 'apikey' && form.platform !== 'antigravity' && !isZCodeLogin" class="space-y-4">
         <div v-if="!isMultiProtocolPlatform || apiProtocol !== 'adaptive'">
           <label class="input-label">{{ t('admin.accounts.baseUrl') }}</label>
           <input
@@ -1516,7 +1525,7 @@
             @select="apiKeyBaseUrl = $event"
           />
           <CnBaseUrlPresets
-            v-if="isCNPlatform && !isOpenCodeGoPlatform"
+            v-if="isCNPlatform && !isOpenCodeGoPlatform && !isZCodeLogin"
             class="mt-2"
             :platform="cnPresetPlatform"
             :mode="cnPresetMode"
@@ -3800,7 +3809,7 @@
     </div>
 
     <template #footer>
-      <div v-if="step === 1" class="flex justify-end gap-3">
+      <div v-if="step === 1 && !zcodePendingAccountId" class="flex justify-end gap-3">
         <button @click="handleClose" type="button" class="btn btn-secondary">
           {{ t('common.cancel') }}
         </button>
@@ -3840,7 +3849,7 @@
           }}
         </button>
       </div>
-      <div v-else class="flex justify-between gap-3">
+      <div v-else-if="!zcodePendingAccountId" class="flex justify-between gap-3">
         <button type="button" class="btn btn-secondary" @click="goBackToBasicInfo">
           {{ t('common.back') }}
         </button>
@@ -4126,6 +4135,7 @@ import {
   isValidWildcardPattern
 } from '@/composables/useModelWhitelist'
 import { adminAPI } from '@/api/admin'
+import ZCodeLoginPanel from './ZCodeLoginPanel.vue'
 import { useQuotaNotifyState } from '@/composables/useQuotaNotifyState'
 import {
   useAccountOAuth,
@@ -4324,6 +4334,11 @@ const emit = defineEmits<{
 }>()
 
 const appStore = useAppStore()
+const zcodeLoginSelected = ref(false)
+const zcodePendingAccountId = ref<number | null>(null)
+const isZCodeLogin = computed(() => form.platform === 'zhipu' && zcodeLoginSelected.value)
+const handleZCodeReady = () => { emit('created'); handleClose() }
+
 
 const hideAccountLongContextBilling = computed(() => {
   return allSelectedGroupsEnableLongContextPricing(form.group_ids, props.groups)
@@ -5588,7 +5603,11 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
     }
     appStore.showSuccess(t('admin.accounts.accountCreated'))
     emit('created')
-    handleClose()
+    if (payload.platform === 'zhipu' && payload.credentials.auth_method === 'zcode') {
+      zcodePendingAccountId.value = account.id
+    } else {
+      handleClose()
+    }
   } catch (error: any) {
     if (error.response?.status === 409 && error.response?.data?.error === 'mixed_channel_warning' && needsMixedChannelCheck(form.platform)) {
       openMixedChannelDialog({
@@ -5608,6 +5627,8 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 
 // Methods
 const resetForm = () => {
+  zcodeLoginSelected.value = false
+  zcodePendingAccountId.value = null
   step.value = 1
   form.name = ''
   form.notes = ''
@@ -5938,6 +5959,15 @@ const handleVertexServiceAccountDrop = async (event: DragEvent) => {
 }
 
 const handleSubmit = async () => {
+  if (isZCodeLogin.value) {
+    if (!form.name.trim() || submitting.value || zcodePendingAccountId.value) return
+    await createAccountAndFinish('zhipu', 'oauth', {
+      auth_method: 'zcode', account_mode: 'coding', api_protocol: 'anthropic',
+      zcode_plan_type: 'personal', zcode_site: 'zai'
+    })
+    return
+  }
+
   // For OAuth-based type, handle OAuth flow (goes to step 2)
   if (isOAuthFlow.value) {
     if (!isGrokSSOInputMethod.value && !form.name.trim()) {

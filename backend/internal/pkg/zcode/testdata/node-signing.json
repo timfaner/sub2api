@@ -1,0 +1,9 @@
+{
+  "id": "fixture-id",
+  "secret": "synthetic-test-secret",
+  "ts": "1792180000123",
+  "nonce": "00112233445566778899aabbccddeeff",
+  "proof": "GLaRMhxjqeAe//Dit4Y9P0PtahRb0be8kjkgQYrSEOw=",
+  "privateCipher": "BwcHBwcHBwcHBwcHSY3Om72b6ci53PYpGpw+ToR31aNiPhnihy7/XT9y+/8tuTNEyHcpYYLNol+fM3DcRYNgryi4J+epCgK60/YqN2ZxTPxVE7HljL1upjtcSC0=",
+  "publicKey": "MCowBQYDK2VwAyEAjc0q5V9JwUhkBIfwex8Fdx4IgN5Tew5R4BiH713f3E4="
+}
