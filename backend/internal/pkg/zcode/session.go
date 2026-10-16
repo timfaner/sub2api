@@ -13,6 +13,9 @@ type Session struct {
 	UserID            string
 	OAuthToken        string
 	OAuthRefreshToken string
+	// Optional broader authorization, bound explicitly after identity verification.
+	// Never replace the original OAuth token or expose this field to API clients.
+	WebSessionToken string
 	// Reported lifetime is evidence, not a verified renewal guarantee.
 	OAuthReportedExpiresIn int64
 	OAuthObservedAt        time.Time
@@ -53,9 +56,9 @@ func (c *Client) PreparePersonal(ctx context.Context, a Authorization) (Session,
 }
 
 // Renew refreshes derived credentials without touching caller state. It does NOT
-// claim to renew the root OAuth token: no root-refresh endpoint was established
-// in the supplied ZCode artifact. Long-lived operation still requires live proof
-// that the retained authorization can continue exchanging business credentials.
+// claim to renew root authorization. An explicitly bound web session is checked
+// against the original identity and project when exchanging business credentials.
+// Otherwise it uses the original OAuth token, with its observed lifetime limit.
 // Callers must coalesce concurrent renewals and persist only if scope is current.
 func (c *Client) Renew(ctx context.Context, current Session, force bool) (Session, error) {
 	if !force && current.PAT != "" && current.PATExpiresAt.After(c.now().Add(3*time.Minute)) {
@@ -67,7 +70,13 @@ func (c *Client) Renew(ctx context.Context, current Session, force bool) (Sessio
 		if next.OAuthToken == "" {
 			return &APIError{Stage: "renew", Code: "ROOT_AUTHORIZATION_MISSING"}
 		}
-		b, err := c.ExchangeBusinessToken(ctx, next.OAuthToken)
+		var b *BusinessToken
+		var err error
+		if next.WebSessionToken != "" {
+			b, err = c.webSessionBusiness(ctx, next, next.WebSessionToken)
+		} else {
+			b, err = c.ExchangeBusinessToken(ctx, next.OAuthToken)
+		}
 		if err != nil {
 			return err
 		}

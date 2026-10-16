@@ -41,6 +41,11 @@ completed. The project token was still valid and retained its original expiry, s
 this does not yet prove renewal beyond its natural expiration. No declared web
 session expiry is not a lifetime guarantee. This experimental credential has not
 been deployed to production and is not exposed as a supported login option.
+The protocol layer now provides explicit `BindWebSession`: it retains the original
+OAuth separately, rejects guest or mismatched identities, verifies the original
+personal project, and repeats those checks when exchanging business credentials.
+Binding errors preserve existing state. A rejected web session does not silently
+fall back to OAuth. An administrator-facing binding flow is still pending.
 
 ## Release channel
 
