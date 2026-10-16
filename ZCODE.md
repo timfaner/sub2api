@@ -41,6 +41,7 @@ upstream source. Updates and rollback require the `zcode-compatible-v1.txt` asse
 Old cached official releases are rejected. The numeric `-zcode.N` suffix allows
 fixes against the same upstream version.
 
+Every push to `zcode` runs the compatible build checks without publishing.
 The **ZCode compatible release** workflow can be dispatched on `zcode` once its
 definition exists on the default branch. Alternatively, push a `vX.Y.Z-zcode.N`
 tag whose commit is on `zcode`; this runs verification and publishing directly.
