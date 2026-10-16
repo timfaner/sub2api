@@ -12,7 +12,7 @@ import (
 func TestZCodeExpiredLeaseCannotReleaseNewOwner(t *testing.T) {
 	r := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: r.Addr()})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	l := NewZCodeRefreshLease(client)
 	ctx := context.Background()
 	oldRelease, ok, err := l.Acquire(ctx, "account", time.Minute)

@@ -56,7 +56,11 @@ func TestNodeSigningParity(t *testing.T) {
 		t.Fatal(err)
 	}
 	message := c.ID + "\n" + h.Get("X-Client-Ts") + "\n" + Version + "\nsession-1\n" + h.Get("X-Client-Nonce")
-	if !ed25519.Verify(pub.(ed25519.PublicKey), []byte(message), sig) {
+	publicKey, ok := pub.(ed25519.PublicKey)
+	if !ok {
+		t.Fatal("fixture public key is not Ed25519")
+	}
+	if !ed25519.Verify(publicKey, []byte(message), sig) {
 		t.Fatal("signature invalid")
 	}
 	prefix := sha256.Sum256([]byte(c.ID + "\nzcode\nsession-1\n" + h.Get("X-Client-Ts")))

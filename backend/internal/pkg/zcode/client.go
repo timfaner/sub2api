@@ -80,7 +80,7 @@ func (c *Client) call(ctx context.Context, stage, method, endpoint, authorizatio
 		}
 		return &APIError{Stage: stage, Code: "NETWORK"}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return &APIError{Stage: stage, Status: resp.StatusCode, Code: "HTTP_REJECTED"}
 	}
@@ -93,7 +93,7 @@ func (c *Client) call(ctx context.Context, stage, method, endpoint, authorizatio
 		return &APIError{Stage: stage, Status: resp.StatusCode, Code: "INVALID_JSON"}
 	}
 	code := string(e.Code)
-	if e.Success != nil && !*e.Success || (code != "0" && code != "200" && code != `"0"` && code != `"200"` && !(stage == "business" && (code == "" || code == "null"))) {
+	if e.Success != nil && !*e.Success || (code != "0" && code != "200" && code != `"0"` && code != `"200"` && (stage != "business" || (code != "" && code != "null"))) {
 		return &APIError{Stage: stage, Status: resp.StatusCode, Code: "BUSINESS_REJECTED"}
 	}
 	if stage == "handshake" && code != "200" {

@@ -57,7 +57,7 @@ func (s *OpenAIGatewayService) doNativeAnthropicUpstream(req *http.Request, prox
 	}
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 65537))
 	if readErr != nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, errors.New("zcode: cannot read upstream authentication response")
 	}
 	resp.Body = &zcodeReplayBody{Reader: io.MultiReader(bytes.NewReader(body), resp.Body), closer: resp.Body}
@@ -73,11 +73,11 @@ func (s *OpenAIGatewayService) doNativeAnthropicUpstream(req *http.Request, prox
 	token := strings.TrimPrefix(req.Header.Get("Authorization"), "Bearer ")
 	err = s.zcodeTokenProvider.Sign(req.Context(), a, next, token, req.Header.Get("X-Session-Id"))
 	if err != nil {
-		next.Body.Close()
-		resp.Body.Close()
+		_ = next.Body.Close()
+		_ = resp.Body.Close()
 		return nil, err
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	return s.doOpenAIUpstream(next, proxyURL, a)
 }
 

@@ -27,7 +27,7 @@ func TestZCodePostgresCredentialCAS(t *testing.T) {
 	ctx := context.Background()
 	admin, err := sql.Open("postgres", dsn)
 	require.NoError(t, err)
-	defer admin.Close()
+	defer func() { require.NoError(t, admin.Close()) }()
 	schema := "zcode_test_" + uuid.New().String()[:8]
 	_, err = admin.ExecContext(ctx, "CREATE SCHEMA "+schema)
 	require.NoError(t, err)
@@ -37,7 +37,7 @@ func TestZCodePostgresCredentialCAS(t *testing.T) {
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("postgres", u.String())
 	require.NoError(t, err)
-	defer db.Close()
+	defer func() { require.NoError(t, db.Close()) }()
 	_, err = db.ExecContext(ctx, `CREATE TABLE accounts (
  id bigint PRIMARY KEY, credentials jsonb NOT NULL, proxy_id bigint,
  platform text NOT NULL DEFAULT 'zhipu', type text NOT NULL DEFAULT 'oauth',
@@ -125,7 +125,10 @@ func TestZCodePostgresCredentialCAS(t *testing.T) {
 		reset()
 		_, err := db.ExecContext(ctx, "ALTER TABLE scheduler_outbox ADD CONSTRAINT reject_event CHECK (account_id < 0)")
 		require.NoError(t, err)
-		defer db.ExecContext(ctx, "ALTER TABLE scheduler_outbox DROP CONSTRAINT reject_event")
+		defer func() {
+			_, err := db.ExecContext(ctx, "ALTER TABLE scheduler_outbox DROP CONSTRAINT reject_event")
+			require.NoError(t, err)
+		}()
 		ok, err := repo.CompleteZCodeLoginIfUnchanged(ctx, 1, initial, nil, next)
 		require.Error(t, err)
 		require.False(t, ok)

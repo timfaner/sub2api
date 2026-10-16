@@ -69,12 +69,12 @@ func ParseCredential(value string) (Credential, error) {
 // derive is HKDF-SHA256 extract/expand for a single 32-byte output block.
 func derive(secret, purpose string) []byte {
 	extract := hmac.New(sha256.New, []byte("WD_CLIENT_SIGN_KDF_SALT"))
-	extract.Write([]byte(secret))
+	_, _ = extract.Write([]byte(secret))
 	prk := extract.Sum(nil)
 	defer clear(prk)
 	expand := hmac.New(sha256.New, prk)
-	expand.Write([]byte(purpose))
-	expand.Write([]byte{1})
+	_, _ = expand.Write([]byte(purpose))
+	_, _ = expand.Write([]byte{1})
 	return expand.Sum(nil)
 }
 
