@@ -11,6 +11,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/stretchr/testify/require"
 )
 
@@ -362,6 +363,8 @@ func TestGatewayServiceRecordUsage_PeakRateAffectsTokenModeImageOutputTokens(t *
 		},
 		User:    &User{ID: 602},
 		Account: &Account{ID: 702},
+		// The peak window excludes 23:59. Avoid depending on the CI wall clock.
+		PricingAt: time.Date(2026, time.January, 1, 12, 0, 0, 0, timezone.Location()),
 	})
 
 	require.NoError(t, err)
