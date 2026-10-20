@@ -288,6 +288,10 @@ func (s *RateLimitService) applyCNProviderReactive429(
 		s.handleCNProviderInsufficientBalance(ctx, account, extractUpstreamErrorMessage(responseBody))
 		return true
 	}
+	if account.IsZCodeOAuth() {
+		s.handleZCode429(ctx, account, headers, responseBody)
+		return true
+	}
 	// 2) Coding Plan 窗口耗尽：冷却到快照中最早的窗口重置点（见
 	// cnProviderQuotaSnapshotReset：429 多由 5h 窗口触发，取较早点避免过度停调）。
 	if account.IsCodingPlan() &&
@@ -295,4 +299,40 @@ func (s *RateLimitService) applyCNProviderReactive429(
 		return true
 	}
 	return false
+}
+
+// ZCode uses distinct error codes for quota windows. A request-rate 429 such as
+// 1302 must not borrow an unrelated 5h or weekly quota reset from the snapshot.
+func (s *RateLimitService) handleZCode429(ctx context.Context, account *Account, headers http.Header, body []byte) {
+	code := extractUpstreamErrorCode(body)
+	if code == "" {
+		message := strings.TrimSpace(extractUpstreamErrorMessage(body))
+		for _, candidate := range []string{"1308", "1310"} {
+			if strings.HasPrefix(message, "["+candidate+"][") {
+				code = candidate
+				break
+			}
+		}
+	}
+	now := time.Now()
+	var resetAt *time.Time
+	switch code {
+	case "1308":
+		resetAt = parseSchedulingResetAt(account.Extra[cnExtraKey(PlatformZhipu, cnExtraSuffix5hReset)])
+	case "1310":
+		resetAt = parseSchedulingResetAt(account.Extra[cnExtraKey(PlatformZhipu, cnExtraSuffixWeeklyReset)])
+	}
+	if resetAt == nil || !resetAt.After(now) {
+		resetAt = parseRetryAfterResetTime(headers, now)
+	}
+	if resetAt == nil || !resetAt.After(now) {
+		s.apply429FallbackRateLimit(ctx, account, "zcode_no_matching_quota_reset")
+		return
+	}
+	s.notifyAccountSchedulingBlocked(account, *resetAt, "429")
+	if err := s.accountRepo.SetRateLimited(ctx, account.ID, *resetAt); err != nil {
+		slog.Warn("rate_limit_set_failed", "account_id", account.ID, "error", err)
+		return
+	}
+	slog.Info("zcode_rate_limited", "account_id", account.ID, "provider_code", code, "reset_at", resetAt.UTC())
 }
